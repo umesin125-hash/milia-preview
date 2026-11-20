@@ -1,0 +1,26 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>ミリア 108フレーム確認用プレビュー</title><style>
+*{box-sizing:border-box}body{margin:0;background:#121925;color:white;font-family:system-ui,"Hiragino Kaku Gothic ProN",sans-serif;padding:16px;min-height:100vh}h1{font-size:1.2rem;margin:6px 0 4px}.info{color:#acb9ce;font-size:.83rem}main{max-width:720px;margin:auto}canvas{display:block;margin:14px auto;background:repeating-conic-gradient(#384358 0% 25%,#283345 0% 50%) 50% / 24px 24px;border:1px solid #53627c;border-radius:12px;width:min(100%,450px);aspect-ratio:1}nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}button{background:#233957;color:#eef4ff;border:1px solid #55739e;border-radius:9px;padding:10px 12px;font-size:14px;touch-action:manipulation}button.active{background:#216a9c;border-color:#68c2ef}label{display:block;margin-top:14px;font-size:.88rem;color:#ccdafa}code{color:#b6ddf7}.note{font-size:.82rem;color:#adbcce;line-height:1.65}#status{font-size:.85rem;text-align:center;color:#abd6ff}</style></head>
+<body><main><h1>ミリア・スプライトアニメーション確認</h1><div class="info">待機16・移動16・ジャンプ16・攻撃20×3／透過PNG／画像は個別ファイル</div>
+<canvas id="c" width="384" height="384"></canvas><div id="status">素材読込中...</div>
+<nav id="controls"><button data-mode="idle">待機 16</button><button data-mode="walk">移動 16</button><button data-mode="jump">ジャンプ 16</button><button data-mode="attack_down">① 縦斬り 20</button><button data-mode="attack_horizontal">② 横斬り 20</button><button data-mode="attack_rising">③ 逆袈裟 20</button><button data-mode="combo">3連コンボ</button></nav>
+<label><input id="fx" type="checkbox" checked> 斬撃エフェクトを重ねて表示</label>
+<p class="note">これはゲーム本体ではなく、スプライトの動作を確認するためのプレビューです。斬撃エフェクトはキャラと同じ描画座標に固定された近接演出で、飛び道具にはなりません。ジャンプの上下移動はこのプレビューのみで簡易表現しています。</p>
+</main><script>
+const data={idle:16,walk:16,jump:16,attack_down:20,attack_horizontal:20,attack_rising:20};
+const images={},fx={};let mode='idle',index=0,elapsed=0,last=0,loaded=false;
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),stat=document.getElementById('status');ctx.imageSmoothingEnabled=false;
+const load=(src)=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});
+Promise.all([...Object.keys(data).map(async k=>images[k]=await load(`milia_${k}_${String(data[k]).padStart(2,'0')}f.png`)),...['attack_down','attack_horizontal','attack_rising'].map(async k=>fx[k]=await load(`milia_fx_${k}_20f.png`))]).then(()=>{loaded=true;stat.textContent='読み込み完了／待機';requestAnimationFrame(draw)}).catch(()=>stat.textContent='読み込み失敗：ZIPを展開し、画像と同じ階層から開いてください');
+function choose(m){mode=m;index=0;elapsed=0;document.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));}
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>choose(b.dataset.mode));choose('idle');
+function draw(time){if(!loaded)return;let dt=Math.min(.1,(time-last)/1000);last=time;const iscombo=mode==='combo';const key=iscombo?['attack_down','attack_horizontal','attack_rising'][Math.min(2,Math.floor(index/20))]:mode;
+ const count=iscombo?60:data[mode],fps=(iscombo||key.startsWith('attack'))?18:key==='idle'?8:12;
+ elapsed+=dt;if(elapsed>=1/fps){const steps=Math.floor(elapsed*fps);elapsed-=steps/fps;index=(index+steps)%count;}
+ const realKey=iscombo?['attack_down','attack_horizontal','attack_rising'][Math.floor(index/20)]:key;
+ const fi=iscombo?index%20:index;ctx.clearRect(0,0,384,384);
+ let yoff=0;if(realKey==='jump'){const p=fi/15;yoff=-Math.round(65*Math.sin(Math.PI*p));}
+ ctx.drawImage(images[realKey],fi*384,0,384,384,0,yoff,384,384);
+ if(document.getElementById('fx').checked&&fx[realKey])ctx.drawImage(fx[realKey],fi*384,0,384,384,0,yoff,384,384);
+ stat.textContent=`${realKey} / フレーム ${fi+1} / ${data[realKey]}`;requestAnimationFrame(draw);
+}
+</script></body></html>
